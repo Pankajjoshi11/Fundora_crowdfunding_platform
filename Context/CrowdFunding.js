@@ -4,8 +4,23 @@ import Web3Modal from "web3modal";
 import { ethers } from "ethers";
 import { CrowdFundingAddress, CrowdFundingABI } from "./constants";
 
-const fetchContract = (signerOrProvider) => 
-    new ethers.Contract(CrowdFundingAddress, CrowdFundingABI, signerOrProvider);
+const fetchContract = (signerOrProvider) => {
+    console.log("🔍 Fetching contract...");
+    if (!signerOrProvider) {
+        console.error("❌ signerOrProvider is undefined!");
+        return null;
+    }
+    
+    try {
+        const contract = new ethers.Contract(CrowdFundingAddress, CrowdFundingABI, signerOrProvider);
+        console.log("✅ Contract fetched successfully:", contract);
+        return contract;
+    } catch (error) {
+        console.error("❌ Error creating contract instance:", error.message);
+        return null;
+    }
+};
+
 
 export const CrowdFundingContext = React.createContext();
 
@@ -16,45 +31,63 @@ export const CrowdFundingProvider = ({ children }) => {
 
     const getProviderOrSigner = async (needSigner = false) => {
         try {
+            console.log("🔍 Connecting to Web3Modal...");
             const web3Modal = new Web3Modal();
             const connection = await web3Modal.connect();
+            
+            console.log("✅ Web3Modal connected. Fetching provider...");
             const provider = new ethers.BrowserProvider(connection);
-
+    
             if (needSigner) {
+                console.log("🔍 Fetching signer...");
                 const signer = await provider.getSigner();
+                if (!signer) throw new Error("❌ Signer is undefined!");
                 return signer;
             }
+    
             return provider;
         } catch (error) {
-            console.error("Error in getProviderOrSigner:", error);
+            console.error("❌ Error in getProviderOrSigner:", error.message);
             throw error;
         }
     };
+    
 
     const createCampaign = async (campaign) => {
         try {
             setIsLoading(true);
+    
+            if (!campaign || !campaign.title || !campaign.description || !campaign.target || !campaign.deadline) {
+                throw new Error("Invalid campaign data. Please provide all required fields.");
+            }
+    
             const signer = await getProviderOrSigner(true);
             const contract = fetchContract(signer);
             const address = await signer.getAddress();
-
+    
             const tx = await contract.createCampaign(
-                address,  // owner address
+                address,  // Owner's address
                 campaign.title,
                 campaign.description,
-                campaign.target,  // amount in wei
-                Math.floor(new Date(campaign.deadline).getTime() / 1000)  // Unix timestamp
+                campaign.target,  // Amount in wei
+                Math.floor(new Date(campaign.deadline).getTime() / 1000)  // Convert to Unix timestamp
             );
-
-            await tx.wait();
-            console.log("Campaign created successfully");
+    
+            console.log("Transaction sent. Waiting for confirmation...");
+    
+            const receipt = await tx.wait();  // Wait for transaction confirmation
+    
+            console.log("✅ Campaign created successfully!", receipt);
+    
+            return { success: true, receipt };  // ✅ Return success response with transaction details
         } catch (error) {
-            console.error("Error in createCampaign:", error);
-            throw error;
+            console.error("❌ Error in createCampaign:", error);
+            return { success: false, error: error.message || "Transaction failed" };  // ✅ Return error response
         } finally {
             setIsLoading(false);
         }
     };
+    
     // const createCampaign= async (campaign)=>{
     //     const{title,description,amount,deadline} = campaign;
     //     const web3Modal= new Web3Modal();

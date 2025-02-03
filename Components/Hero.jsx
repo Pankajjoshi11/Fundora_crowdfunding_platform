@@ -6,17 +6,28 @@ const Hero = ({titleData,createCampaign}) => {
   const [campaign,setCampaign]=useState({
     title:"",
     description:"",
-    amount:"",
+    target:"",
     deadline:"",
   });
-  const createNewCampaign = async(e)=>{
+  const createNewCampaign = async (e) => {
     e.preventDefault();
-    try{
-      const data=await createCampaign(campaign);
-    }catch(err){
-      console.log(err);
+
+    try {
+        console.log("Creating campaign...", campaign);
+
+        const result = await createCampaign(campaign);  // ✅ Now returns a response object
+
+        if (result.success) {
+            console.log("🎉 Campaign successfully created!", result.receipt);
+        } else {
+            console.error("❌ Campaign creation failed:", result.error);
+        }
+    } catch (err) {
+        console.error("Unexpected error:", err);
     }
-  }
+};
+
+
 
   return (
     <div className='relative flex flex-col '>
@@ -106,7 +117,7 @@ const Hero = ({titleData,createCampaign}) => {
                 <input type="text"
                   onChange={(e)=>setCampaign({
                     ...campaign,
-                    amount: e.target.value,
+                    target: e.target.value,
                   })}
                   placeholder='amount'
                   required
